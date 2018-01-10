@@ -216,8 +216,8 @@ contract CardBase {
 contract CardOwnership is CardBase, ERC721 {
 
     /// @notice Name and symbol of the non fungible token, as defined in ERC721.
-    string public constant name = "ownerStuff2";
-    string public constant symbol = "own2";
+    string public constant name = "birthing";
+    string public constant symbol = "birth";
 
     bytes4 constant InterfaceSignature_ERC165 =
         bytes4(keccak256('supportsInterface(bytes4)'));
@@ -423,10 +423,87 @@ contract CardOwnership is CardBase, ERC721 {
 
 }
 
+contract CardMinting is CardOwnership
+{
+	struct CardPack 	//card packs come in packs of 8
+	{
+        
+        uint16 suit1;
+        uint16 value1;
+		
+		uint16 suit2;
+        uint16 value2;
+		
+		uint16 suit3;
+        uint16 value3;
+		
+		uint16 suit4;
+        uint16 value4;
+		
+		uint16 suit5;
+        uint16 value5;
+		
+		uint16 suit6;
+        uint16 value6;
+		
+		uint16 suit7;
+        uint16 value7;
+		
+		uint16 suit8;
+        uint16 value8;
+     
+    }
+	
+	//for creating new cards
+	//would need to automate the timing of creating new cards.
+	//(Maybe have a button that when clicked creates a pack and sends to your address)
+	function createCardPack(address buyer) external
+	{
+		//@TODO send money
+		
+		//function to create the cards in a pack with a specific rarity
+		CardPack memory cardPack = generateCardPack();
+		
+		_createCard(cardPack.suit1, cardPack.value1, buyer);
+		_createCard(cardPack.suit2, cardPack.value2, buyer);
+		_createCard(cardPack.suit3, cardPack.value3, buyer);
+		_createCard(cardPack.suit4, cardPack.value4, buyer);
+		_createCard(cardPack.suit5, cardPack.value5, buyer);
+		_createCard(cardPack.suit6, cardPack.value6, buyer);
+		_createCard(cardPack.suit7, cardPack.value7, buyer);
+		_createCard(cardPack.suit8, cardPack.value8, buyer);
+		
+	}
+	
+	function generateCardPack() internal pure returns (CardPack memory cardValues)		//might eventually have to take out pure part
+	{
+		// @TODO random values based off of some seed
+		
+		cardValues.suit1 = 5;
+		cardValues.value1 = 1;
+		cardValues.suit2 = 5;
+		cardValues.value2 = 2;
+		cardValues.suit3 = 5;
+		cardValues.value3 = 3;
+		cardValues.suit4 = 5;
+		cardValues.value4 = 4;
+		cardValues.suit5 = 5;
+		cardValues.value5 = 5;
+		cardValues.suit6 = 5;
+		cardValues.value6 = 6;
+		cardValues.suit7 = 5;
+		cardValues.value7 = 7;
+		cardValues.suit8 = 5;
+		cardValues.value8 = 8;
+		
+		return cardValues;
+	}
+}
+
 
 //*********************************************************************************************************************************************************************
 
-contract CardCore is CardOwnership {
+contract CardCore is CardMinting {
 
     // This is the main CryptoKitties contract. In order to keep our code seperated into logical sections,
     // we've broken it up in two ways. First, we have several seperately-instantiated sibling contracts
@@ -547,6 +624,8 @@ contract CardCore is CardOwnership {
 	{
 		return owners;
 	}
+	
+	
 		
 /*
     /// @dev Used to mark the smart contract as upgraded, in case there is a serious
@@ -579,7 +658,7 @@ contract CardCore is CardOwnership {
     function withdrawBalance() external onlyOwners 
 	{
         uint256 balance = this.balance;
-		owners[0].send(balance);
+		owners[0].transfer(balance);
     }
 	
 }
