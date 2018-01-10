@@ -31,8 +31,10 @@ contract Ownable {
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) onlyOwner public{	//not sure about the public thing
-    if (newOwner != address(0)) {
+  function transferOwnership(address newOwner) onlyOwner public
+  {	
+    if (newOwner != address(0)) 
+	{
       owner = newOwner;
     }
   }
@@ -163,11 +165,7 @@ contract CardBase {
 			// Emit the transfer event.
 			Transfer(_from, _to, _tokenId[i]);
 		}
-        
-        
-        
-        
-        
+         
     }
 
 	
@@ -175,13 +173,7 @@ contract CardBase {
     ///  method doesn't do any checking and should only be called when the
     ///  input data is known to be valid. Will generate both a Birth event
     ///  and a Transfer event.
-    function _createCard(
-        uint16 _suit,
-        uint16 _value,
-        address _owner
-    )
-        internal
-        returns (uint)
+    function _createCard(uint16 _suit, uint16 _value, address _owner) internal returns (uint)
     {
         // These requires are not strictly necessary, our calling code should make
         // sure that these conditions are never broken. However! _createKitty() is already
@@ -208,12 +200,7 @@ contract CardBase {
         require(newCardId == uint256(uint32(newCardId)));
 
         // emit the birth event
-        Birth(
-            _owner,
-            newCardId,
-            _card.suit,
-			_card.value
-        );
+        Birth(_owner, newCardId, _card.suit, _card.value);
 
         // This will assign ownership, and also emit the Transfer event as
         // per ERC721 draft
@@ -222,13 +209,6 @@ contract CardBase {
         return newCardId;
     }
 	
-/*
-    // Any C-level can fix how many seconds per blocks are currently observed.
-    function setSecondsPerBlock(uint256 secs) external onlyCLevel {
-        require(secs < cooldowns[0]);
-        secondsPerBlock = secs;
-    }
-	*/
 }
 
 //***********************************************************************************************************************************************************************
@@ -236,11 +216,8 @@ contract CardBase {
 contract CardOwnership is CardBase, ERC721 {
 
     /// @notice Name and symbol of the non fungible token, as defined in ERC721.
-    string public constant name = "GenericCardGame";
-    string public constant symbol = "GCG";
-
-    // The contract that will return kitty metadata
-    //ERC721Metadata public erc721Metadata;		//didn't add in the contract with that becuase it doesn't look like it is ever used.
+    string public constant name = "ownerStuff2";
+    string public constant symbol = "own2";
 
     bytes4 constant InterfaceSignature_ERC165 =
         bytes4(keccak256('supportsInterface(bytes4)'));
@@ -253,7 +230,7 @@ contract CardOwnership is CardBase, ERC721 {
         bytes4(keccak256('ownerOf(uint256)')) ^
         bytes4(keccak256('approve(address,uint256)')) ^
         bytes4(keccak256('transfer(address,uint256)')) ^
-		bytes4(keccak256('transfer(address,uint256[])')) ^		//not sure....
+		bytes4(keccak256('transfer(address,uint256[])')) ^
         bytes4(keccak256('transferFrom(address,address,uint256)')) ^
         bytes4(keccak256('tokensOfOwner(address)')) ^
         bytes4(keccak256('tokenMetadata(uint256,string)'));
@@ -268,13 +245,7 @@ contract CardOwnership is CardBase, ERC721 {
 
         return ((_interfaceID == InterfaceSignature_ERC165) || (_interfaceID == InterfaceSignature_ERC721));
     }
-/*
-    /// @dev Set the address of the sibling contract that tracks metadata.
-    ///  CEO only.
-    function setMetadataAddress(address _contractAddress) public onlyCEO {
-        erc721Metadata = ERC721Metadata(_contractAddress);
-    }
-	*/
+
 
     // Internal utility functions: These functions all assume that their input arguments
     // are valid. We leave it to public methods to sanitize their inputs and follow
@@ -283,14 +254,16 @@ contract CardOwnership is CardBase, ERC721 {
     /// @dev Checks if a given address is the current owner of a particular Kitty.
     /// @param _claimant the address we are validating against.
     /// @param _tokenId kitten id, only valid when > 0
-    function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
+    function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) 
+	{
         return cardIndexToOwner[_tokenId] == _claimant;
     }
 
     /// @dev Checks if a given address currently has transferApproval for a particular Kitty.
     /// @param _claimant the address we are confirming kitten is approved for.
     /// @param _tokenId kitten id, only valid when > 0
-    function _approvedFor(address _claimant, uint256 _tokenId) internal view returns (bool) {
+    function _approvedFor(address _claimant, uint256 _tokenId) internal view returns (bool) 
+	{
         return cardIndexToApproved[_tokenId] == _claimant;
     }
 
@@ -299,14 +272,16 @@ contract CardOwnership is CardBase, ERC721 {
     ///  NOTE: _approve() does NOT send the Approval event. This is intentional because
     ///  _approve() and transferFrom() are used together for putting Kitties on auction, and
     ///  there is no value in spamming the log with Approval events in that case.
-    function _approve(uint256 _tokenId, address _approved) internal {
+    function _approve(uint256 _tokenId, address _approved) internal 
+	{
         cardIndexToApproved[_tokenId] = _approved;
     }
 
     /// @notice Returns the number of Kitties owned by a specific address.
     /// @param _owner The owner address to check.
     /// @dev Required for ERC-721 compliance
-    function balanceOf(address _owner) public view returns (uint256 count) {
+    function balanceOf(address _owner) public view returns (uint256 count) 
+	{
         return ownershipTokenCount[_owner];
     }
 
@@ -316,21 +291,13 @@ contract CardOwnership is CardBase, ERC721 {
     /// @param _to The address of the recipient, can be a user or contract.
     /// @param _tokenId The ID of the Kitty to transfer.
     /// @dev Required for ERC-721 compliance.
-    function transfer(
-        address _to,
-        uint256 _tokenId
-    )
-        external
+    function transfer(address _to, uint256 _tokenId) external		//leaving for ERC-721 compliance (Don't think that it is used ever.)
     {
         // Safety check to prevent against an unexpected 0x0 default.
         require(_to != address(0));
         // Disallow transfers to this contract to prevent accidental misuse.
-        // The contract should never own any kitties (except very briefly
-        // after a gen0 cat is created and before it goes on auction).
+
         require(_to != address(this));
-        // Disallow transfers to the auction contracts to prevent accidental
-        // misuse. Auction contracts should only take ownership of kitties
-        // through the allow + transferFrom flow.
 
         // You can only send your own cat.
         require(_owns(msg.sender, _tokenId));
@@ -345,12 +312,7 @@ contract CardOwnership is CardBase, ERC721 {
         // Safety check to prevent against an unexpected 0x0 default.
         require(_to != address(0));
         // Disallow transfers to this contract to prevent accidental misuse.
-        // The contract should never own any kitties (except very briefly
-        // after a gen0 cat is created and before it goes on auction).
         require(_to != address(this));
-        // Disallow transfers to the auction contracts to prevent accidental
-        // misuse. Auction contracts should only take ownership of kitties
-        // through the allow + transferFrom flow.
 
         // You can only send your own cat.
 		for(uint256 i = 0; i < _tokenId.length; i++)
@@ -369,11 +331,7 @@ contract CardOwnership is CardBase, ERC721 {
     ///  clear all approvals.
     /// @param _tokenId The ID of the Kitty that can be transferred if this call succeeds.
     /// @dev Required for ERC-721 compliance.
-    function approve(
-        address _to,
-        uint256 _tokenId
-    )
-        external
+    function approve(address _to, uint256 _tokenId) external
     {
         // Only an owner can grant transfer approval.
         require(_owns(msg.sender, _tokenId));
@@ -392,18 +350,11 @@ contract CardOwnership is CardBase, ERC721 {
     ///  including the caller.
     /// @param _tokenId The ID of the Kitty to be transferred.
     /// @dev Required for ERC-721 compliance.
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    )
-        external
+    function transferFrom(address _from, address _to, uint256 _tokenId) external
     {
         // Safety check to prevent against an unexpected 0x0 default.
         require(_to != address(0));
         // Disallow transfers to this contract to prevent accidental misuse.
-        // The contract should never own any kitties (except very briefly
-        // after a gen0 cat is created and before it goes on auction).
         require(_to != address(this));
         // Check for approval and valid ownership
         require(_approvedFor(msg.sender, _tokenId));
@@ -415,16 +366,14 @@ contract CardOwnership is CardBase, ERC721 {
 
     /// @notice Returns the total number of Kitties currently in existence.
     /// @dev Required for ERC-721 compliance.
-    function totalSupply() public view returns (uint) {
+    function totalSupply() public view returns (uint) 
+	{
         return cards.length - 1;
     }
 
     /// @notice Returns the address currently assigned ownership of a given Kitty.
     /// @dev Required for ERC-721 compliance.
-    function ownerOf(uint256 _tokenId)
-        external
-        view
-        returns (address owner)
+    function ownerOf(uint256 _tokenId) external view returns (address owner)
     {
         owner = cardIndexToOwner[_tokenId];
 
@@ -440,13 +389,17 @@ contract CardOwnership is CardBase, ERC721 {
     ///  expensive (it walks the entire Kitty array looking for cats belonging to owner),
     ///  but it also returns a dynamic array, which is only supported for web3 calls, and
     ///  not contract-to-contract calls.
-    function tokensOfOwner(address _owner) external view returns(uint256[] ownerTokens) {
+    function tokensOfOwner(address _owner) external view returns(uint256[] ownerTokens) 
+	{
         uint256 tokenCount = balanceOf(_owner);
 
-        if (tokenCount == 0) {
+        if (tokenCount == 0) 
+		{
             // Return an empty array
             return new uint256[](0);
-        } else {
+        } 
+		else 
+		{
             uint256[] memory result = new uint256[](tokenCount);
             uint256 totalCards = totalSupply();
             uint256 resultIndex = 0;
@@ -455,8 +408,10 @@ contract CardOwnership is CardBase, ERC721 {
             // sequentially up to the totalCat count.
             uint256 cardId;
 
-            for (cardId = 1; cardId <= totalCards; cardId++) {
-                if (cardIndexToOwner[cardId] == _owner) {
+            for (cardId = 1; cardId <= totalCards; cardId++) 
+			{
+                if (cardIndexToOwner[cardId] == _owner) 
+				{
                     result[resultIndex] = cardId;
                     resultIndex++;
                 }
@@ -466,59 +421,6 @@ contract CardOwnership is CardBase, ERC721 {
         }
     }
 
-	/*
-    /// @dev Adapted from memcpy() by @arachnid (Nick Johnson <arachnid@notdot.net>)
-    ///  This method is licenced under the Apache License.
-    ///  Ref: https://github.com/Arachnid/solidity-stringutils/blob/2f6ca9accb48ae14c66f1437ec50ed19a0616f78/strings.sol
-    function _memcpy(uint _dest, uint _src, uint _len) private view {
-        // Copy word-length chunks while possible
-        for(; _len >= 32; _len -= 32) {
-            assembly {
-                mstore(_dest, mload(_src))
-            }
-            _dest += 32;
-            _src += 32;
-        }
-
-        // Copy remaining bytes
-        uint256 mask = 256 ** (32 - _len) - 1;
-        assembly {
-            let srcpart := and(mload(_src), not(mask))
-            let destpart := and(mload(_dest), mask)
-            mstore(_dest, or(destpart, srcpart))
-        }
-    }
-
-    /// @dev Adapted from toString(slice) by @arachnid (Nick Johnson <arachnid@notdot.net>)
-    ///  This method is licenced under the Apache License.
-    ///  Ref: https://github.com/Arachnid/solidity-stringutils/blob/2f6ca9accb48ae14c66f1437ec50ed19a0616f78/strings.sol
-    function _toString(bytes32[4] _rawBytes, uint256 _stringLength) private view returns (string) {
-        var outputString = new string(_stringLength);
-        uint256 outputPtr;
-        uint256 bytesPtr;
-
-        assembly {
-            outputPtr := add(outputString, 32)
-            bytesPtr := _rawBytes
-        }
-
-        _memcpy(outputPtr, bytesPtr, _stringLength);
-
-        return outputString;
-    }
-
-    /// @notice Returns a URI pointing to a metadata package for this token conforming to
-    ///  ERC-721 (https://github.com/ethereum/EIPs/issues/721)
-    /// @param _tokenId The ID number of the Kitty whose metadata should be returned.
-    function tokenMetadata(uint256 _tokenId, string _preferredTransport) external view returns (string infoUrl) {
-        require(erc721Metadata != address(0));
-        bytes32[4] memory buffer;
-        uint256 count;
-        (buffer, count) = erc721Metadata.getMetadata(_tokenId, _preferredTransport);
-
-        return _toString(buffer, count);
-    }
-	*/
 }
 
 
@@ -550,14 +452,14 @@ contract CardCore is CardOwnership {
 
     // Set in case the core contract is broken and an upgrade is required
     address public newContractAddress;
+	address[] owners;
 
     /// @notice Creates the main CryptoKitties smart contract instance.
     function CardCore() public {
         // Starts paused.
         //paused = true;		// Not sure about commenting this out.
 		
-		//@TODO
-		//Create all of the cards!!!!!
+		owners.push(msg.sender);		//adds the person creating the contract as the first owner.
 		_createCard(0, 0, address(0x9D5A2e6b7B556A80fc9164d41d4e6433c5D3CB3d));		//sends to my ether address on rinkby ;)
 		
 		uint16 suit;
@@ -570,6 +472,82 @@ contract CardCore is CardOwnership {
 			}
 		}
     }
+	
+	modifier onlyOwners()
+	{
+		var found = false;
+		
+		for(uint256 i = 0; i < owners.length; i++)
+		{
+			if(owners[i] == msg.sender)
+			{
+				found = true;
+				break;
+			}
+		}
+		if(!found)
+		{
+			revert();
+		}
+		_;
+	}
+	
+	function kill() onlyOwners external
+	{	
+		selfdestruct(owners[0]);
+	}
+	
+	function addOwner(address newOwner) onlyOwners external
+	{
+		var zeros = false;
+		
+		if (newOwner != address(0)) 
+		{
+			//if the owner array has null addresses then new owners should override those addresses
+			//this will make sure that we don't have a huge owners array of null addresses.
+			for(uint256 i = 0; i < owners.length; i++)
+			{
+				if (owners[i] == address(0))
+				{
+					owners[i] = newOwner;
+					zeros = true;
+					break;
+				}
+			}
+		}
+		//only pushes at the end if the owner array doesn't have any null addresses
+		if(!zeros)
+		{
+			owners.push(newOwner);
+		}
+    }
+	
+	function removeOwner(address deleteOwner) onlyOwners external
+	{
+		require(owners.length > 1);
+		
+		for(uint256 i = 0; i < owners.length; i++)
+		{
+			if(owners[i] == deleteOwner)
+			{
+				if(i == owners.length-1)
+				{
+					delete owners[i];
+				}
+				else
+				{
+					owners[i] = owners[owners.length-1];
+					delete owners[owners.length-1];	
+				}	
+			}
+		}			
+	}
+	
+	function showOwners() external view returns(address[] ownerAddresses)
+	{
+		return owners;
+	}
+		
 /*
     /// @dev Used to mark the smart contract as upgraded, in case there is a serious
     ///  breaking bug. This method does nothing but keep track of the new contract and
@@ -584,66 +562,26 @@ contract CardCore is CardOwnership {
     }
 */
 
-/* 
-It's okay if you tip us officer.
-
-    /// @notice No tipping!
-    /// @dev Reject all Ether from being sent here, unless it's from one of the
-    ///  two auction contracts. (Hopefully, we can prevent user accidents.)
-    function() external payable {
-        require(
-            msg.sender == address(saleAuction) ||
-            msg.sender == address(siringAuction)
-        );
-    }
-	*/
 
     /// @notice Returns all the relevant information about a specific kitty.
     /// @param _id The ID of the kitty of interest.
 	//not sure why they used uint256 for all the values even if they were normally smaller.
-    function getCard(uint256 _id)
-        external
-        view
-        returns (
-        uint16 suit,
-        uint16 value
-    ) {
+    function getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
+	{
         Card storage card = cards[_id];
 
-        // if this variable is 0 then it's not gestating
 		suit = card.suit;
 		value = card.value;
     }
 
-    /// @dev Override unpause so it requires all external contract addresses
-    ///  to be set before contract can be unpaused. Also, we can't have
-    ///  newContractAddress set either, because then the contract was upgraded.
-    /// @notice This is public rather than external so we can call super.unpause
-    ///  without using an expensive CALL.
-	/* Since pause is commented out I did the same here.
-    function unpause() public onlyCEO whenPaused {
-        require(saleAuction != address(0));
-        require(siringAuction != address(0));
-        require(geneScience != address(0));
-        require(newContractAddress == address(0));
 
-        // Actually unpause the contract.
-        super.unpause();
-    }
-*/
-
-/* not sure why this is needed
     // @dev Allows the CFO to capture the balance available to the contract.
-    function withdrawBalance() external onlyCFO {
+    function withdrawBalance() external onlyOwners 
+	{
         uint256 balance = this.balance;
-        // Subtract all the currently pregnant kittens we have, plus 1 of margin.
-        uint256 subtractFees = (pregnantKitties + 1) * autoBirthFee;
-
-        if (balance > subtractFees) {
-            cfoAddress.send(balance - subtractFees);
-        }
+		owners[0].send(balance);
     }
-	*/
+	
 }
 
 
