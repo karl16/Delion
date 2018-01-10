@@ -454,24 +454,32 @@ contract CardMinting is CardOwnership
      
     }
 	
+	event CardPackCreated(uint256 tokenId1, uint256 tokenId2, uint256 tokenId3, uint256 tokenId4, uint256 tokenId5, uint256 tokenId6, uint256 tokenId7, uint256 tokenId8);
+	
 	//for creating new cards
 	//would need to automate the timing of creating new cards.
 	//(Maybe have a button that when clicked creates a pack and sends to your address)
-	function createCardPack(address buyer) external
+	function createCardPack(address buyer) external payable
 	{
 		//@TODO send money
+		//uint256 amount = 50000000;
+		//address transferAddress = address(0x2212E9408450d64fA9aec83c6169eB82eC4F9B14);
+		//msg.sender.transfer(1 ether);
 		
 		//function to create the cards in a pack with a specific rarity
 		CardPack memory cardPack = generateCardPack();
 		
-		_createCard(cardPack.suit1, cardPack.value1, buyer);
-		_createCard(cardPack.suit2, cardPack.value2, buyer);
-		_createCard(cardPack.suit3, cardPack.value3, buyer);
-		_createCard(cardPack.suit4, cardPack.value4, buyer);
-		_createCard(cardPack.suit5, cardPack.value5, buyer);
-		_createCard(cardPack.suit6, cardPack.value6, buyer);
-		_createCard(cardPack.suit7, cardPack.value7, buyer);
-		_createCard(cardPack.suit8, cardPack.value8, buyer);
+		uint256 tokenId1 = _createCard(cardPack.suit1, cardPack.value1, buyer);
+		uint256 tokenId2 = _createCard(cardPack.suit2, cardPack.value2, buyer);
+		uint256 tokenId3 = _createCard(cardPack.suit3, cardPack.value3, buyer);
+		uint256 tokenId4 = _createCard(cardPack.suit4, cardPack.value4, buyer);
+		uint256 tokenId5 = _createCard(cardPack.suit5, cardPack.value5, buyer);
+		uint256 tokenId6 = _createCard(cardPack.suit6, cardPack.value6, buyer);
+		uint256 tokenId7 = _createCard(cardPack.suit7, cardPack.value7, buyer);
+		uint256 tokenId8 = _createCard(cardPack.suit8, cardPack.value8, buyer);
+		
+		//event
+		CardPackCreated(tokenId1, tokenId2, tokenId3, tokenId4, tokenId5, tokenId6, tokenId7, tokenId8);
 		
 	}
 	
@@ -497,6 +505,10 @@ contract CardMinting is CardOwnership
 		cardValues.value8 = 8;
 		
 		return cardValues;
+	}
+	
+	function () external payable
+	{
 	}
 }
 
