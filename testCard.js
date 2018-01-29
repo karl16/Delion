@@ -118,16 +118,30 @@ contract DataProxy
 	/// Take note that the order of the members in this structure
     /// Is important because of the byte-packing rules used by Ethereum.
     /// Ref: http://solidity.readthedocs.io/en/develop/miscellaneous.html
+	
+	//uint8 holds 0 to 255
     struct Card {
-        // Suit is the suit of the card (Hearts, Spades, etc.)
-		// 1 corresponds to Spades, 2 corresponds to Clubs, 3 corresponds to Hearts, and 4 corresponds to Diamonds.
-		// Joker has value 0
-        uint16 suit;
-        
-        // The value of the card (Ace, two, Jack, etc.)
-        // Jacks will have value 11, Queens value 12, Kings value 13
-		// Joker has value 0
-        uint16 value;
+		//1 is type ship, 2 is type weapons, 3 is type engines, 4 thrusters, 5 shields, 6 defense
+		uint8 cardType;
+		//only set when card type is 1(ship)***************
+		uint8 shipType;
+        //uint8 cargoSpace;		
+        //uint8 miscSlots;
+		uint8 weaponSlots;
+		//uint8 engineSlots;
+		//uint8 defenseSlots;
+		//uint8 evasiveness;
+		//*************************************************
+		//only set when card type is not 1(ship)*****
+		uint8 damage;
+		uint8 energy;
+		
+		//uint8 powerProduced;
+		//uint8 speed;
+		
+		//*******************************************
+		
+		//maybe add an array that holds the cards on the ship instead of having the array below.
     }
 
     /*** CONSTANTS ***/
@@ -149,6 +163,8 @@ contract DataProxy
     /// transferFrom(). Each Card can only have one approved address for transfer
     /// at any time. A zero value means no approval is outstanding.
     mapping (uint256 => address) public cardIndexToApproved;
+	
+	mapping (uint256 => uint256) public cardIndexToShip;
 	
 	
 	//add in the functions to actually change the data.
@@ -241,12 +257,15 @@ contract DataProxy
 		}
          
     }
-	function _createCard(uint16 _suit, uint16 _value, address _owner) external returns (uint)
+	function _createCard(uint8 _cardType, uint8 _shipType, uint8 _weaponSlots, uint8 _damage, uint8 _energy, address _owner) external returns (uint)
     {
 		
         Card memory _card = Card({
-            suit: _suit,
-            value: _value
+			cardType: _cardType,
+			shipType: _shipType,
+			weaponSlots: _weaponSlots,
+			damage: _damage,
+			energy: _energy
         });
         uint256 newCardId = cards.push(_card) - 1;
 		//uint256 newCardId = dataProxy.addNewCard(_suit, _value);
@@ -255,7 +274,7 @@ contract DataProxy
         require(newCardId == uint256(uint32(newCardId)));
 
         // emit the Creation event
-        Creation(_owner, newCardId, _suit, _value);
+       // Creation(_owner, newCardId, _cardType, _shipType);													// @TODO fix the events
 
         // This will assign ownership, and also emit the Transfer event as
         // per ERC721 draft
@@ -271,13 +290,36 @@ contract DataProxy
 	{
         cardIndexToApproved[_tokenId] = _approved;
     }
-	function _getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
+	function _getCard(uint256 _id) external view returns (uint8 cardType, uint8 shipType, uint8 weaponSlots, uint8 damage, uint8 energy) 
 	{	
         Card memory card = cards[_id];
 
-		suit = card.suit;
-		value = card.value;
+		cardType = card.cardType;
+		shipType = card.shipType;
+		weaponSlots = card.weaponSlots;
+		damage = card.damage;
+		energy = card.energy;
     }
+	
+	function _addCardToShip(address _sender, uint256 _cardID, uint256 _shipID) external
+	{
+		
+		
+		Card memory card = cards[_cardID];
+		Card memory ship = cards[_shipID];
+		
+		require(card.cardType != 1);		//make sure it isn't a ship
+		
+		if(card.cardType == 2)		//just testing with weapon types
+		{
+			require(ship.weaponSlots > 0);
+			cards[_shipID].weaponSlots--;
+			cardIndexToShip[_cardID] = _shipID;
+			this._transfer(_sender, address(0), _cardID);		//burns the card
+		}
+
+		
+	}
 }
 
 contract CardBase is Executive{
@@ -295,7 +337,7 @@ contract CardBase is Executive{
 
 	function CardBase()	public		// @dev 
 	{
-		dataProxy = DataProxy(address(0x0));	// Enter the address of the DataProxy address~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		dataProxy = DataProxy(address(0xc1F5ca7F28A9b886504B992048a79d6D37D92D08));	// Enter the address of the DataProxy address~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	}
 	
 	function changeProxyAddress(address newAddress) external onlyOwners
@@ -310,8 +352,8 @@ contract CardBase is Executive{
 contract CardOwnership is CardBase, ERC721 {
 
     /// @notice Name and symbol of the non fungible token, as defined in ERC721.
-    string public constant name = "Delion";
-    string public constant symbol = "DEL";
+    string public constant name = "Ships";
+    string public constant symbol = "SHIP";
 
     bytes4 constant InterfaceSignature_ERC165 =
         bytes4(keccak256('supportsInterface(bytes4)'));
@@ -443,10 +485,21 @@ contract CardOwnership is CardBase, ERC721 {
 		
         require(owner != address(0));
     }
+	
+	function addCardToShip(uint256 _cardID, uint256 _shipID) external
+	{
+		require(dataProxy._owns(msg.sender, _cardID));
+		require(dataProxy._owns(msg.sender, _shipID));
+		
+		dataProxy._addCardToShip(msg.sender, _cardID, _shipID);
+		
+	}
 }
+
 
 contract CardMinting is CardOwnership
 {
+/*
 	struct CardPack 	//card packs come in packs of 8(Reason: a single 256 bit storage block) (subject to change)
 	{
         
@@ -540,6 +593,7 @@ contract CardMinting is CardOwnership
 	function () external payable
 	{
 	}
+*/
 }
 
 
@@ -578,7 +632,7 @@ contract CardCore is CardMinting {
 
     /// Returns all the relevant information about a specific Card.
     /// @param _id The ID of the Card of interest.
-	function getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
+	function getCard(uint256 _id) external view returns (uint8 cardType, uint8 shipType, uint8 weaponSlots, uint8 damage, uint8 energy) 
 	{
 		return dataProxy._getCard(_id);
     }

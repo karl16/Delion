@@ -41,93 +41,44 @@ contract Ownable {
 
 }
 
-//setting the owners.
 contract Executive
 {
-	address[] owners;
+	//no way to show all of the owners addresses though
+	//so make sure to delete old addresses!
+	mapping(address => uint16) owners;
+	mapping(address => uint16) contracts;
+	uint256 numberOfOwners;
 	
-	
+	function Executive() public
+	{
+		owners[msg.sender] = 1;
+		numberOfOwners++;
+	}
+
 	modifier onlyOwners()
 	{
-		var found = false;
-		
-		for(uint256 i = 0; i < owners.length; i++)
-		{
-			if(owners[i] == msg.sender)
-			{
-				found = true;
-				break;
-			}
-		}
-		if(!found)
-		{
-			revert();
-		}
+		require (owners[msg.sender] != 0);
 		_;
 	}
 	
 	function addOwner(address newOwner) onlyOwners external
 	{
-		//no check to make sure that the owner isn't already in the list... So be careful
-		var zeros = false;
-		
-		if (newOwner != address(0)) 
-		{
-			//if the owner array has null addresses then new owners should override those addresses
-			//this will make sure that we don't have a huge owners array of null addresses.
-			for(uint256 i = 0; i < owners.length; i++)
-			{
-				if (owners[i] == address(0))
-				{
-					owners[i] = newOwner;
-					zeros = true;
-					break;
-				}
-			}
-		}
-		//only pushes at the end if the owner array doesn't have any null addresses
-		if(!zeros)
-		{
-			owners.push(newOwner);
-		}
+		require(newOwner != address(0));
+		owners[newOwner] = 1;
+		numberOfOwners++;
     }
 	
 	function removeOwner(address deleteOwner) onlyOwners external
 	{
-		require(owners.length > 1);
-		
-		for(uint256 i = 0; i < owners.length; i++)
-		{
-			if(owners[i] == deleteOwner)
-			{
-				if(i == owners.length-1)
-				{
-					delete owners[i];
-				}
-				else
-				{
-					owners[i] = owners[owners.length-1];
-					delete owners[owners.length-1];	
-				}	
-			}
-		}			
+		require(numberOfOwners > 1);
+		owners[deleteOwner] = 0;
+		numberOfOwners--;
 	}
-	
-	function kill() onlyOwners external
-	{	
-		// Sends any funds in the contract to the first owner in the list
-		// Then destroys the contract
-		
-		selfdestruct(owners[0]);	
-	}
-	
-	
-	
-	function showOwners() external view returns(address[] ownerAddresses)
+
+	function showOwners() external view returns(uint256 ownerNumbers)
 	{
-		return owners;
-	}
-	
+		return numberOfOwners;
+	}	
 }
 
 
@@ -160,18 +111,8 @@ contract ERC721 {
 }
 
 //*********************************************************************************************************************************************************************************************
-
-contract CardBase is Executive{
-    /*** EVENTS ***/
-
-    /// Creation event. Fired when a new card is created.
-    event Creation(address owner, uint256 cardID, uint16 suit, uint16 value);
-    
-    /// Transfer event as defined in current draft of ERC721.
-    event Transfer(address from, address to, uint256 tokenId);
-
-    /*** DATA TYPES ***/
-
+contract DataProxy
+{
 	/// Main Card struct
 	/// Take great care to make sure it fits in the 256-blocks perfectly
 	/// Take note that the order of the members in this structure
@@ -191,9 +132,6 @@ contract CardBase is Executive{
 
     /*** CONSTANTS ***/
 
-    // An approximation of currently how many seconds are in between blocks.
-    uint256 public secondsPerBlock = 15;
-
     /*** STORAGE ***/
 
 
@@ -211,9 +149,65 @@ contract CardBase is Executive{
     /// transferFrom(). Each Card can only have one approved address for transfer
     /// at any time. A zero value means no approval is outstanding.
     mapping (uint256 => address) public cardIndexToApproved;
+	
+	
+	//add in the functions to actually change the data.
+	function balanceOfAddr(address _owner) external view returns (uint256 count) 
+	{
+        return ownershipTokenCount[_owner];
+    }
+	function totalAmount() external view returns (uint) 
+	{
+        return cards.length - 1;
+    }
+	function cardOwner(uint256 _tokenId) external view returns(address owner)
+	{
+        owner = cardIndexToOwner[_tokenId];
+	}
+	
+	function tokensOfOwner(address _owner) external view returns(uint256[] ownerTokens) 			
+	{
+        uint256 tokenCount = ownershipTokenCount[_owner];
 
-    /// Assigns ownership of a specific Card to an address.
-    function _transfer(address _from, address _to, uint256 _tokenId) internal {
+        if (tokenCount == 0) 
+		{
+            // Return an empty array
+            return new uint256[](0);
+        } 
+		else 
+		{
+            uint256[] memory result = new uint256[](tokenCount);
+            uint256 totalCards = cards.length - 1;
+            uint256 resultIndex = 0;
+
+            // We count on the fact that all Cards have IDs starting at 1 and increasing
+            // sequentially up to the totalCards count.
+            uint256 cardId;
+
+            for (cardId = 1; cardId <= totalCards; cardId++) 
+			{
+                if (cardIndexToOwner[cardId] == _owner) 
+				{
+                    result[resultIndex] = cardId;
+                    resultIndex++;
+                }
+            }
+
+            return result;
+        }
+    }
+	
+	event Creation(address owner, uint256 cardID, uint16 suit, uint16 value);
+    
+    /// Transfer event as defined in current draft of ERC721.
+    event Transfer(address from, address to, uint256 tokenId);	
+	
+	
+	function _owns(address _claimant, uint256 _tokenId) external view returns (bool)
+	{
+		return cardIndexToOwner[_tokenId] == _claimant;
+	}
+	function _transfer(address _from, address _to, uint256 _tokenId) external {		//transfered to use the new DataProxy.
         // Since the number of cards is capped to 2^32 we can't overflow this
         ownershipTokenCount[_to]++;
         // transfer ownership
@@ -225,10 +219,9 @@ contract CardBase is Executive{
             delete cardIndexToApproved[_tokenId];
         }
         // Emit the transfer event.
-        Transfer(_from, _to, _tokenId);
+        Transfer(_from, _to, _tokenId);		
     }
-	
-	function _transfer(address _from, address _to, uint256[] _tokenId) internal 
+	function _transfer(address _from, address _to, uint256[] _tokenId) external
 	{
         for(uint256 i = 0; i < _tokenId.length; i++)
 		{
@@ -248,33 +241,67 @@ contract CardBase is Executive{
 		}
          
     }
-
-	
-    /// An internal method that creates a new Card and stores it. This
-    /// method doesn't do any checking and should only be called when the
-    /// input data is known to be valid. Will generate both a Creation event
-    /// and a Transfer event.
-    function _createCard(uint16 _suit, uint16 _value, address _owner) internal returns (uint)
+	function _createCard(uint16 _suit, uint16 _value, address _owner) external returns (uint)
     {
-
+		
         Card memory _card = Card({
             suit: _suit,
             value: _value
         });
         uint256 newCardId = cards.push(_card) - 1;
+		//uint256 newCardId = dataProxy.addNewCard(_suit, _value);
 		
 		//Caps the amount of cards to be 4 billion
         require(newCardId == uint256(uint32(newCardId)));
 
         // emit the Creation event
-        Creation(_owner, newCardId, _card.suit, _card.value);
+        Creation(_owner, newCardId, _suit, _value);
 
         // This will assign ownership, and also emit the Transfer event as
         // per ERC721 draft
-        _transfer(0, _owner, newCardId);
+        this._transfer(0, _owner, newCardId);
 
         return newCardId;
     }
+	function _approvedFor(address _claimant, uint256 _tokenId) external view returns (bool) 
+	{
+        return cardIndexToApproved[_tokenId] == _claimant;
+    }
+	function _approve(uint256 _tokenId, address _approved) external 
+	{
+        cardIndexToApproved[_tokenId] = _approved;
+    }
+	function _getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
+	{	
+        Card memory card = cards[_id];
+
+		suit = card.suit;
+		value = card.value;
+    }
+}
+
+contract CardBase is Executive{
+	DataProxy dataProxy;
+
+    /*** EVENTS ***/
+
+    /// Creation event. Fired when a new card is created.
+    event Creation(address owner, uint256 cardID, uint16 suit, uint16 value);
+    
+    /// Transfer event as defined in current draft of ERC721.
+    event Transfer(address from, address to, uint256 tokenId);
+
+    /*** DATA TYPES ***/
+
+	function CardBase()	public		// @dev 
+	{
+		dataProxy = DataProxy(address(0x0));	// Enter the address of the DataProxy address~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	}
+	
+	function changeProxyAddress(address newAddress) external onlyOwners
+	{
+		dataProxy = DataProxy(newAddress);
+	}
 	
 }
 
@@ -283,8 +310,8 @@ contract CardBase is Executive{
 contract CardOwnership is CardBase, ERC721 {
 
     /// @notice Name and symbol of the non fungible token, as defined in ERC721.
-    string public constant name = "birthing";
-    string public constant symbol = "birth";
+    string public constant name = "Ships";
+    string public constant symbol = "SHIP";
 
     bytes4 constant InterfaceSignature_ERC165 =
         bytes4(keccak256('supportsInterface(bytes4)'));
@@ -313,41 +340,13 @@ contract CardOwnership is CardBase, ERC721 {
         return ((_interfaceID == InterfaceSignature_ERC165) || (_interfaceID == InterfaceSignature_ERC721));
     }
 
-
-    // Internal utility functions: These functions all assume that their input arguments
-    // are valid. We leave it to public methods to sanitize their inputs and follow
-    // the required logic.
-
-    /// Checks if a given address is the current owner of a particular Card.
-    /// @param _claimant the address we are validating against.
-    /// @param _tokenId card id, only valid when > 0
-    function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) 
-	{
-        return cardIndexToOwner[_tokenId] == _claimant;
-    }
-
-    /// Checks if a given address currently has transferApproval for a particular Card.
-    /// @param _claimant the address we are confirming Card is approved for.
-    /// @param _tokenId Card id, only valid when > 0
-    function _approvedFor(address _claimant, uint256 _tokenId) internal view returns (bool) 
-	{
-        return cardIndexToApproved[_tokenId] == _claimant;
-    }
-
-    /// Marks an address as being approved for transferFrom(), overwriting any previous
-    /// approval. Setting _approved to address(0) clears all transfer approval.
-    /// NOTE: _approve() does NOT send the Approval event.
-    function _approve(uint256 _tokenId, address _approved) internal 
-	{
-        cardIndexToApproved[_tokenId] = _approved;
-    }
-
     /// Returns the number of Cards owned by a specific address.
     /// @param _owner The owner address to check.
     /// @dev Required for ERC-721 compliance
     function balanceOf(address _owner) public view returns (uint256 count) 
 	{
-        return ownershipTokenCount[_owner];
+        //return ownershipTokenCount[_owner];
+		return dataProxy.balanceOfAddr(_owner);
     }
 
     /// Transfers a Card to another address. If transferring to a smart
@@ -363,10 +362,11 @@ contract CardOwnership is CardBase, ERC721 {
         require(_to != address(this));
 
         // You can only send your own Card.
-        require(_owns(msg.sender, _tokenId));
+        require(dataProxy._owns(msg.sender, _tokenId));
 
         // Reassign ownership, clear pending approvals, emit Transfer event.
-        _transfer(msg.sender, _to, _tokenId);
+        dataProxy._transfer(msg.sender, _to, _tokenId);
+		
     }
 	
 	
@@ -380,12 +380,11 @@ contract CardOwnership is CardBase, ERC721 {
         // You can only send your own Card.
 		for(uint256 i = 0; i < _tokenId.length; i++)
 		{
-			require(_owns(msg.sender, _tokenId[i]));
+			require(dataProxy._owns(msg.sender, _tokenId[i]));
 		}
-        
 
         // Reassign ownership, clear pending approvals, emit Transfer event.
-        _transfer(msg.sender, _to, _tokenId);
+        dataProxy._transfer(msg.sender, _to, _tokenId);
     }
 
     /// Grant another address the right to transfer a specific Card via
@@ -397,10 +396,10 @@ contract CardOwnership is CardBase, ERC721 {
     function approve(address _to, uint256 _tokenId) external
     {
         // Only an owner can grant transfer approval.
-        require(_owns(msg.sender, _tokenId));
+        require(dataProxy._owns(msg.sender, _tokenId));
 
         // Register the approval (replacing any previous approval).
-        _approve(_tokenId, _to);
+        dataProxy._approve(_tokenId, _to);
 
         // Emit approval event.
         Approval(msg.sender, _to, _tokenId);
@@ -420,68 +419,30 @@ contract CardOwnership is CardBase, ERC721 {
         // Disallow transfers to this contract to prevent accidental misuse.
         require(_to != address(this));
         // Check for approval and valid ownership
-        require(_approvedFor(msg.sender, _tokenId));
-        require(_owns(_from, _tokenId));
+        require(dataProxy._approvedFor(msg.sender, _tokenId));
+        require(dataProxy._owns(_from, _tokenId));
 
         // Reassign ownership (also clears pending approvals and emits Transfer event).
-        _transfer(_from, _to, _tokenId);
+        dataProxy._transfer(_from, _to, _tokenId);
     }
 
     /// Returns the total number of Card currently in existence.
     /// @dev Required for ERC-721 compliance.
     function totalSupply() public view returns (uint) 
 	{
-        return cards.length - 1;
+        //return cards.length - 1;
+		return dataProxy.totalAmount();
     }
 
     /// Returns the address currently assigned ownership of a given Card.
     /// @dev Required for ERC-721 compliance.
     function ownerOf(uint256 _tokenId) external view returns (address owner)
     {
-        owner = cardIndexToOwner[_tokenId];
-
+        //owner = cardIndexToOwner[_tokenId];
+		owner = dataProxy.cardOwner(_tokenId);
+		
         require(owner != address(0));
     }
-
-	
-    /// Returns a list of all Card IDs assigned to an address.
-    /// @param _owner The owner whose Cards we are interested in.
-    /// @dev This method MUST NEVER be called by smart contract code. First, it's fairly
-    ///  expensive (it walks the entire Card array looking for Cards belonging to owner),
-    ///  but it also returns a dynamic array, which is only supported for web3 calls, and
-    ///  not contract-to-contract calls.
-    function tokensOfOwner(address _owner) external view returns(uint256[] ownerTokens) 
-	{
-        uint256 tokenCount = balanceOf(_owner);
-
-        if (tokenCount == 0) 
-		{
-            // Return an empty array
-            return new uint256[](0);
-        } 
-		else 
-		{
-            uint256[] memory result = new uint256[](tokenCount);
-            uint256 totalCards = totalSupply();
-            uint256 resultIndex = 0;
-
-            // We count on the fact that all Cards have IDs starting at 1 and increasing
-            // sequentially up to the totalCards count.
-            uint256 cardId;
-
-            for (cardId = 1; cardId <= totalCards; cardId++) 
-			{
-                if (cardIndexToOwner[cardId] == _owner) 
-				{
-                    result[resultIndex] = cardId;
-                    resultIndex++;
-                }
-            }
-
-            return result;
-        }
-    }
-
 }
 
 contract CardMinting is CardOwnership
@@ -529,14 +490,14 @@ contract CardMinting is CardOwnership
 		//function to create the cards in a pack with a specific rarity
 		CardPack memory cardPack = generateCardPack();
 		
-		uint256 tokenId1 = _createCard(cardPack.suit1, cardPack.value1, msg.sender);
-		uint256 tokenId2 = _createCard(cardPack.suit2, cardPack.value2, msg.sender);
-		uint256 tokenId3 = _createCard(cardPack.suit3, cardPack.value3, msg.sender);
-		uint256 tokenId4 = _createCard(cardPack.suit4, cardPack.value4, msg.sender);
-		uint256 tokenId5 = _createCard(cardPack.suit5, cardPack.value5, msg.sender);
-		uint256 tokenId6 = _createCard(cardPack.suit6, cardPack.value6, msg.sender);
-		uint256 tokenId7 = _createCard(cardPack.suit7, cardPack.value7, msg.sender);
-		uint256 tokenId8 = _createCard(cardPack.suit8, cardPack.value8, msg.sender);
+		uint256 tokenId1 = dataProxy._createCard(cardPack.suit1, cardPack.value1, msg.sender);
+		uint256 tokenId2 = dataProxy._createCard(cardPack.suit2, cardPack.value2, msg.sender);
+		uint256 tokenId3 = dataProxy._createCard(cardPack.suit3, cardPack.value3, msg.sender);
+		uint256 tokenId4 = dataProxy._createCard(cardPack.suit4, cardPack.value4, msg.sender);
+		uint256 tokenId5 = dataProxy._createCard(cardPack.suit5, cardPack.value5, msg.sender);
+		uint256 tokenId6 = dataProxy._createCard(cardPack.suit6, cardPack.value6, msg.sender);
+		uint256 tokenId7 = dataProxy._createCard(cardPack.suit7, cardPack.value7, msg.sender);
+		uint256 tokenId8 = dataProxy._createCard(cardPack.suit8, cardPack.value8, msg.sender);
 		
 		//event
 		CardPackCreated(tokenId1, tokenId2, tokenId3, tokenId4, tokenId5, tokenId6, tokenId7, tokenId8);
@@ -608,51 +569,18 @@ contract CardCore is CardMinting {
     address public newContractAddress;
 	
 
-    /// @notice Creates the main CryptoKitties smart contract instance.
-    function CardCore() public {
-        // Starts paused.
-        //paused = true;		// Not sure about commenting this out.
-		
-		owners.push(msg.sender);		//adds the person creating the contract as the first owner.
-		_createCard(0, 0, address(0x9D5A2e6b7B556A80fc9164d41d4e6433c5D3CB3d));		//sends to my ether address on rinkby ;)
-		
-		uint16 suit;
-		uint16 value;
-		for(suit = 1; suit <= 4; suit++)
-		{
-			for(value = 1; value <= 13; value++)
-			{
-				_createCard(suit, value, address(0x9D5A2e6b7B556A80fc9164d41d4e6433c5D3CB3d)); //sends all the cards to me mwhahahah
-			}
-		}
+    function CardCore() public 
+	{
+		owners[msg.sender] = 1;
     }
 	
-		
-/*
-//not sure if I need this yet...
-
-    /// @dev Used to mark the smart contract as upgraded, in case there is a serious
-    ///  breaking bug. This method does nothing but keep track of the new contract and
-    ///  emit a message indicating that the new address is set. It's up to clients of this
-    ///  contract to update to the new contract address in that case. (This contract will
-    ///  be paused indefinitely if such an upgrade takes place.)
-    /// @param _v2Address new address
-    function setNewAddress(address _v2Address) external onlyCEO whenPaused {
-        // See README.md for updgrade plan
-        newContractAddress = _v2Address;
-        ContractUpgrade(_v2Address);
-    }
-*/
 
 
     /// Returns all the relevant information about a specific Card.
     /// @param _id The ID of the Card of interest.
-    function getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
+	function getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
 	{
-        Card storage card = cards[_id];
-
-		suit = card.suit;
-		value = card.value;
+		return dataProxy._getCard(_id);
     }
 
 
@@ -661,8 +589,13 @@ contract CardCore is CardMinting {
     function withdrawBalance() external onlyOwners 
 	{
         uint256 balance = this.balance;
-		owners[0].transfer(balance);
+		msg.sender.transfer(balance);
     }
+	
+	function kill() onlyOwners external
+	{			
+		selfdestruct(msg.sender);	
+	}
 	
 }
 

@@ -76,16 +76,31 @@ contract DataProxy is Executive
 	/// Take note that the order of the members in this structure
     /// Is important because of the byte-packing rules used by Ethereum.
     /// Ref: http://solidity.readthedocs.io/en/develop/miscellaneous.html
+	
+	//uint8 holds 0 to 255
     struct Card {
-        // Suit is the suit of the card (Hearts, Spades, etc.)
-		// 1 corresponds to Spades, 2 corresponds to Clubs, 3 corresponds to Hearts, and 4 corresponds to Diamonds.
-		// Joker has value 0
-        uint16 suit;
-        
-        // The value of the card (Ace, two, Jack, etc.)
-        // Jacks will have value 11, Queens value 12, Kings value 13
-		// Joker has value 0
-        uint16 value;
+		uint256[] cardsAttached;
+		//1 is type ship, 2 is type weapons, 3 is type engines, 4 thrusters, 5 shields, 6 defense
+		uint8 cardType;
+		//only set when card type is 1(ship)***************
+		uint8 shipType;
+       // uint8 cargoSpace;		
+        //uint8 miscSlots;
+		uint8 weaponSlots;
+		//uint8 engineSlots;
+		//uint8 defenseSlots;
+		//uint8 evasiveness;
+		//*************************************************
+		//only set when card type is not 1(ship)*****
+		uint8 damage;
+		uint8 energy;
+		
+	//	uint8 powerProduced;
+	//	uint8 speed;
+		
+		//*******************************************
+		
+		//maybe add an array that holds the cards on the ship instead of having the array below.
     }
 
     /*** CONSTANTS ***/
@@ -108,6 +123,8 @@ contract DataProxy is Executive
     /// at any time. A zero value means no approval is outstanding.
     mapping (uint256 => address) public cardIndexToApproved;
 	
+	mapping (uint256 => uint256) public cardIndexToShip;
+	
 	
 	
 	function kill() external onlyOwners
@@ -116,8 +133,13 @@ contract DataProxy is Executive
 	}
 	function DataProxy() public
 	{
-		_createCardInternal(0, 0, msg.sender);		//sends to the contract creators address
-		_createCardInternal(1, 1, msg.sender);
+
+		//TODO
+		_createCardInternal(0, 0, 0, 0, 0, address(0));		//sends to the contract creators address
+		_createCardInternal(1, 1, 1, 0, 0,  msg.sender);
+		_createCardInternal(1, 2, 1, 0, 0,  msg.sender);
+		_createCardInternal(2, 0, 0, 10, 1,  msg.sender);
+		_createCardInternal(2, 0, 0, 50, 5,  msg.sender);
 	}
 	
 	//add in the functions to actually change the data.
@@ -216,20 +238,27 @@ contract DataProxy is Executive
 		}
          
     }
-	function _createCard(uint16 _suit, uint16 _value, address _owner) external onlyContracts returns (uint)
+
+	function _createCard(uint8 _cardType, uint8 _shipType, uint8 _weaponSlots, uint8 _damage, uint8 _energy, address _owner) external onlyContracts returns (uint)
     {
-		
+		uint256[] memory _cardsAttached;
         Card memory _card = Card({
-            suit: _suit,
-            value: _value
+			cardsAttached: _cardsAttached,
+			cardType: _cardType,
+			shipType: _shipType,
+			weaponSlots: _weaponSlots,
+			damage: _damage,
+			energy: _energy
+
         });
         uint256 newCardId = cards.push(_card) - 1;
+		//uint256 newCardId = dataProxy.addNewCard(_suit, _value);
 		
 		//Caps the amount of cards to be 4 billion
         require(newCardId == uint256(uint32(newCardId)));
 
         // emit the Creation event
-        Creation(_owner, newCardId, _suit, _value);
+        //Creation(_owner, newCardId, _cardType, _shipType);													// @TODO fix the events
 
         // This will assign ownership, and also emit the Transfer event as
         // per ERC721 draft
@@ -237,7 +266,9 @@ contract DataProxy is Executive
 
         return newCardId;
     }
-	
+		
+
+
 	/// Checks if a given address currently has transferApproval for a particular Card.
 	function _approvedFor(address _claimant, uint256 _tokenId) external onlyContracts view returns (bool) 
 	{
@@ -252,12 +283,18 @@ contract DataProxy is Executive
         cardIndexToApproved[_tokenId] = _approved;
     }
 	
-	function _createCardInternal(uint16 _suit, uint16 _value, address _owner) internal returns (uint)
+	function _createCardInternal(uint8 _cardType, uint8 _shipType, uint8 _weaponSlots, uint8 _damage, uint8 _energy, address _owner) internal returns (uint)
     {
+		uint256[] memory _cardsAttached;
 		
         Card memory _card = Card({
-            suit: _suit,
-            value: _value
+			cardsAttached: _cardsAttached,
+			cardType: _cardType,
+			shipType: _shipType,
+			weaponSlots: _weaponSlots,
+			damage: _damage,
+			energy: _energy
+
         });
         uint256 newCardId = cards.push(_card) - 1;
 		//uint256 newCardId = dataProxy.addNewCard(_suit, _value);
@@ -266,7 +303,7 @@ contract DataProxy is Executive
         require(newCardId == uint256(uint32(newCardId)));
 
         // emit the Creation event
-        Creation(_owner, newCardId, _suit, _value);
+        //Creation(_owner, newCardId, _suit, _value);
 
         // This will assign ownership, and also emit the Transfer event as
         // per ERC721 draft
@@ -289,15 +326,52 @@ contract DataProxy is Executive
         Transfer(_from, _to, _tokenId);		
     }
 	
-	function _getCard(uint256 _id) external view returns (uint16 suit, uint16 value) 
-	{
-		
+	function _getCard(uint256 _id) external view returns (uint8 cardType, uint8 shipType, uint8 weaponSlots, uint8 damage, uint8 energy) 
+	{	
         Card memory card = cards[_id];
 
-		suit = card.suit;
-		value = card.value;
+		cardType = card.cardType;
+		shipType = card.shipType;
+		weaponSlots = card.weaponSlots;
+		damage = card.damage;
+		energy = card.energy;
     }
+	function _addCardToShip(address _sender, uint256 _cardID, uint256 _shipID) external onlyContracts
+	{
+		
+		
+		Card memory card = cards[_cardID];
+		Card memory ship = cards[_shipID];
+		
+		require(card.cardType != 1);		//make sure it isn't a ship
+		
+		if(card.cardType == 2)		//just testing with weapon types
+		{
+			require(ship.weaponSlots > 0);
+			cards[_shipID].weaponSlots--;
+			cards[_shipID].cardsAttached.push(_cardID);
+			cardIndexToShip[_cardID] = _shipID;
+			_transferInternal(_sender, address(0), _cardID);		//burns the card
+		}
 
+		
+	}
+	function cardsOnShip(uint256 _shipID) public view returns(uint256[] attachedCards)
+	{
+		uint256[] memory result = new uint256[](20);
+		uint256 resultIndex = 0;
+		
+		for(uint256 cardID = 1; cardID < cards.length; cardID++)
+		{
+			if (cardIndexToShip[cardID] == _shipID) 
+			{
+				result[resultIndex] = cardID;
+				resultIndex++;
+			}
+
+		}
+            return result;
+	}
 	
 	
 	
