@@ -92,23 +92,13 @@ contract BetBase is Executive
     //Mapping of Dates to a list of bets for that day
     //Each day it checks the bets in the list that correspond to that specific day
     // @dev make sure to delete bets after they are finished to keep storage low.
-    mapping(bytes32 => Bet[]) betList;
-    uint256 tmpTesting = 0;
+    mapping(bytes32 => Bet[]) betList;      // @dev @TODO this won't work because dynamically sized arrays are not allowed and or liked
+    //maybe try a mapping to a mapping
 
     //events
     event Payout(address winner, uint256 payout);
     event BetCreated(address g1, address g2, bytes32 p1, bytes32 p2, bytes32 comp, bytes32 compCrit, uint256 pot, bytes32 date);
 
-    function _createBetTemp(address sender) internal
-    {
-        address t = sender;
-        t = 0x0;
-        tmpTesting++;
-    }
-    function tmp() external view returns(uint256 num)
-    {
-        num = tmpTesting;
-    }
 
     /*
     function _payout(address winner, uint256 balance) internal
@@ -118,13 +108,13 @@ contract BetBase is Executive
 
         //event
         emit Payout(winner, balance);
-    }
-    */
+    }*/
+    
     /*
     function _determineWinner(Bet bet) internal returns(address winner)      // @dev maybe add a bool incase there is a tie or something
     {
         //determines winner using the orcalized data
-        address winner;
+        winner = 0x0;
 
         //implement logic for checking winner @dev
 
@@ -132,8 +122,36 @@ contract BetBase is Executive
         return winner;
     }
     */
-    /*
+
+    
+
+    //adding bets
+    function _addBet(address g1, address g2, bytes32 t1, bytes32 t2, bytes32 op, bytes32 critera, uint256 pot, bytes32 date) internal
+    {
+        Bet memory bet = Bet(
+            g1,
+            g2,
+            t1,
+            t2,
+            op,
+            critera, 
+            pot
+        );
+        betList[date].push(bet);
+
+        //event
+        emit BetCreated(g1, g2, t1, t2, op, critera, pot, date);
+    }
+
+
+     
+
+}
+
+contract BetMain is BetBase
+{
     //Probably create a chron job that will call this function or something @dev
+    /*
     function checkBets(bytes32 date) external onlyContracts
     {
         //only allows certain addresses to call this function (Namely the server hopefully)
@@ -148,23 +166,31 @@ contract BetBase is Executive
 
             _payout(winner, balance);
         }
-    }
-*/
-    /*
-    //adding bets
-    function _addBet(address g1, address g2, bytes32 t1, bytes t2, bytes32 op, bytes32 critera, uint256 pot, bytes32 date) internal
+    }*/
+
+    function showBets() external view returns (uint256[] prices)
     {
-        betList[date].push(Bet.new(g1, g2, t1, t2, op, critera, pot));
-
-        //event
-        emit BetCreated(g1, g2, t1, t2, op, critera, pot, date);
+        bytes32 date = "352f31372f3138";
+        uint256 size = betList[date].length;
+        uint256[] memory result = new uint256[](size);
+        uint256 currIndex = 0;
+        for(uint256 i = 0; i < size; i++)
+        {
+            uint256 balance = betList[date][i].pot;
+            result[currIndex] = balance;
+            currIndex++;
+        }
+        return result;
     }
-    */
-
+    function numBets() external view returns (uint256 size)
+    {
+        bytes32 date = "352f31372f3138";
+        size = betList[date].length;
+    }
 }
 
 
-contract AuctionBase is BetBase
+contract AuctionBase is BetMain
 {
     struct Auction
     {
@@ -252,8 +278,8 @@ contract AuctionBase is BetBase
 
         //create the bets now
         //not sure if this will actually will create the new bet.
-        //_addBet(a.writer, sender, a.playerOrTeam1, a.playerOrTeam2, a.comparisonOperator, a.comparisonCriteria, a.cost*2, a.date);
-        _createBetTemp(sender);
+        _addBet(a.writer, sender, a.playerOrTeam1, a.playerOrTeam2, a.comparisonOperator, a.comparisonCriteria, a.cost*2, a.date);
+        //_createBetTemp(sender);
 
     }
 
