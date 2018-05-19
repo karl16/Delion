@@ -1,27 +1,25 @@
 pragma solidity ^0.4.18;
 
+
+/*
+* @dev Notes
+* Bytes32 must be hex. So we will have to convert Ascii to Hex before sending from the webserver.
+* Cost of 100 = .01 Ether
+*/
 contract Executive
 {
-	//no way to show all of the owners addresses though
-	//so make sure to delete old addresses!
+    // @dev
+	// No way to show all of the owners addresses though
+	// So make sure to delete old addresses!
     mapping(address => uint16) owners;
     mapping(address => uint16) contracts;
     uint256 numberOfOwners;
-
-    /*
-    function Executive() public
-    {
-        owners[msg.sender] = 1;
-        numberOfOwners++;
-    }
-    */
 
     modifier onlyOwners()
     {
         require (owners[msg.sender] != 0);
         _;
     }
-
 
     function addOwner(address newOwner) onlyOwners external
     {
@@ -90,34 +88,66 @@ contract BetBase is Executive
     }
 
     //Mapping of Dates to a list of bets for that day
-    //Each day it checks the bets in the list that correspond to that specific day
-    // @dev make sure to delete bets after they are finished to keep storage low.
     mapping(bytes32 => Bet[]) betList;      // @dev @TODO this won't work because dynamically sized arrays are not allowed and or liked
-    //maybe try a mapping to a mapping
+    //this might work actually need more testing
+
+    mapping(bytes32 => uint256[]) tmpList;      // @dev for testing
 
     //events
     event Payout(address winner, uint256 payout);
     event BetCreated(address g1, address g2, bytes32 p1, bytes32 p2, bytes32 comp, bytes32 compCrit, uint256 pot, bytes32 date);
 
+//Testing Start ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ @dev
+    function addingToArray() external returns (uint256 size)
+    {
+        bytes32 key = "3ee";
+        tmpList[key].push(42);
+    }
+    function sizeOfArray() external view returns (uint256 size)
+    {
+        bytes32 key = "3ee";
+        size = tmpList[key].length();
+    }
+    function valAt(uint256 index) external view returns (uint256 val)
+    {
+        bytes32 key = "3ee";
+        val = tmpList[key][index];
+    }
+//Testing End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     /*
-    function _payout(address winner, uint256 balance) internal
+    function _payout(address winner, uint256 balance, Bet b) internal
     {
-        //pay the winner
-        winner.transfer(balance);
+        //Check for a tie. Incase of tie 0x0 is returned
+        if(winner == 0x0)
+        {
+            //pay both gamblers
+            b.gambler1.transfer(balance/2);
+            b.gambler2.transfer(balance/2);
 
-        //event
-        emit Payout(winner, balance);
+            //event
+            emit Payout(b.gambler1, balance/2);
+            emit Payout(b.gambler2, balance/2);
+        }
+        else
+        {
+            //pay the winner
+            winner.transfer(balance);
+
+            //event
+            emit Payout(winner, balance);
+        }
+        
     }*/
     
     /*
-    function _determineWinner(Bet bet) internal returns(address winner)      // @dev maybe add a bool incase there is a tie or something
+    // @dev incase of tie 0x0 is returned
+    function _determineWinner(Bet bet) internal returns(address winner)      
     {
         //determines winner using the orcalized data
         winner = 0x0;
 
         //implement logic for checking winner @dev
-
 
         return winner;
     }
@@ -158,16 +188,20 @@ contract BetMain is BetBase
         uint256 size = betList[date].length;
         for(uint256 i = 0; i < size; i++)
         {
-            address winner = _determineWinner(betList[date][i]);
-            uint256 balance = betList[date][i].pot;
+            Bet memory b = betList[date][i];
+            address winner = _determineWinner(b);
+            uint256 balance = b.pot;
+            
 
             //delete the bet to guard against reentrancy attack before paying out
             delete betList[date][i];
 
-            _payout(winner, balance);
+            _payout(winner, balance, b);
         }
     }*/
 
+
+    // For testing @dev
     function showBets() external view returns (uint256[] prices)
     {
         bytes32 date = "352f31372f3138";
@@ -182,6 +216,7 @@ contract BetMain is BetBase
         }
         return result;
     }
+    // For testing @dev
     function numBets() external view returns (uint256 size)
     {
         bytes32 date = "352f31372f3138";
@@ -230,8 +265,7 @@ contract AuctionBase is BetMain
 
     function _addAuction(Auction a) internal
     {
-        require(a.cost > 0);
-        //maybe do a require to check if that id has already been used  @dev @TODO
+        require(_isLive(a));
 
         a.id = numberOfAuctions;
 
@@ -268,21 +302,17 @@ contract AuctionBase is BetMain
     {
         Auction storage a = auctionMapping[id];
 
-        //This verifies that the auction is still live.
-        //If the auction is live then cost is gaurenteed to be greater than 0.
-        require(a.cost > 0);
+        require(_isLive(a));
 
         //delete auction before creating the bet
         _removeAuction(a.id);
         numLiveAuctions--;
 
-        //create the bets now
-        //not sure if this will actually will create the new bet.
+        //create the bet now
         _addBet(a.writer, sender, a.playerOrTeam1, a.playerOrTeam2, a.comparisonOperator, a.comparisonCriteria, a.cost*2, a.date);
-        //_createBetTemp(sender);
-
     }
 
+    //cost is gaurenteed to be greater than 0 if it is a live auction
     function _isLive(Auction a) internal pure returns (bool flag)
     {
         return (a.cost > 0);
@@ -301,7 +331,15 @@ contract AuctionMain is AuctionBase
         require(cost == uint256(uint128(cost)));
         require(msg.value >= cost);
 
-        //Need to do a check that the date has not already passed @dev @TODO
+        //Figure out how to get currentDate @dev @TODO
+        //require(date > currentDate)
+
+        //send back extra ether to owner
+        if(msg.value > cost)
+        {
+            uint256 extra = msg.value - cost;
+            msg.sender.transfer(extra);
+        }
 
         Auction memory auction = Auction(
             msg.sender,
@@ -332,11 +370,20 @@ contract AuctionMain is AuctionBase
     {
         Auction storage a = auctionMapping[id];
 
-        require(a.cost > 0);
+        require(_isLive(a));
         require(msg.value >= a.cost);
         require(msg.sender != a.writer);    //can't accept your own bet (has to be a new person)
 
+        //send back extra ether
+        if(msg.value > a.cost)
+        {
+            uint256 extra = msg.value - a.cost;
+            msg.sender.transfer(extra);
+        }
+
         //Need to do a check that the date has not already passed @dev @TODO
+        //require(a.date > currentDate);
+        
         _bid(id, msg.sender);
     }
 
@@ -379,6 +426,22 @@ contract AuctionMain is AuctionBase
         comparisonCriteria = a.comparisonCriteria;
         cost = a.cost;
         writer = a.writer;
+    }
+
+    // Should almost never call this as it will be costly
+    // Given a date it deletes all Auctions that end before that date.
+    // Good practice would be to not put the current date so that you don't have to worry about deleting auctions that could still be used
+    function cleanUpAuctions(bytes32 currentDate) external onlyOwners
+    {
+        for(uint256 i = 0; i < numberOfAuctions; i++)
+        {
+            if(_isLive(auctionMapping[i]) && auctionMapping[i].date < currentDate)
+            {
+                // Take 1% fee for cancelling there auction
+                auctionMapping[i].cost *= .99;
+                _cancelAuction(auctionMapping[i].date, auctionMapping[i].writer);
+            }
+        }
     }
 
     function () external payable
