@@ -119,3 +119,46 @@
 		*/
 		
     }
+	
+	
+	function createAuction()
+	{
+		var team1 = document.getElementById("team1").value;
+		var team2 = document.getElementById("team2").value;
+		var winner = document.getElementById("winner").value;
+		var cost = document.getElementById("cost").value;
+		var date = document.getElementById("date").value;
+		var greaterOp = ">";
+		var score = "Score";
+		
+		//convert all string variables to bytes32
+		
+		var contractAddress = "0x930c33F869303D3FbEAb7EdE98c2e6b409946ce5";		//need updated address
+		var abiOfContract = //input without quotes
+		var contractABI = web3.eth.contract(abiOfContract);
+		var myContract = contractABI.at(contractAddress);
+		
+		
+		//not entirely sure amount the value thing 
+		//ie how it works with other variables...
+		if(winner == team1)
+		{
+			myContract.createAuction(team1, team2, greaterOp, score, cost, date, {"value": amount}, function(error, result){
+			if(error)
+			{
+				console.log(error);
+			}
+			});
+		}
+		else
+		{
+			myContract.createAuction(team2, team1, greaterOp, score, cost, date, {"value": amount}, function(error, result){
+			if(error)
+			{
+				console.log(error);
+			}
+			});
+		}	
+		
+	}
+	

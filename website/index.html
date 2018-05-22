@@ -12,12 +12,35 @@
     </label>
     <button onclick="send()">Donate to the Author (Warning: TestNet)</button>
 	
+	<!--
 	<label> Address:
       <input type="text" id="address"></input>
     </label>
 	<button onclick="testingStuff()"> Click for the test </button>
+	-->
+	<button href="acceptBet.html"> Look for Bets created </button>
 	
     <div id="response"></div>
+  </fieldset>
+  
+  <fieldset>
+  <h2 id="header2" align="center"> Create Bet<h2>
+	<label> Team1:
+      <input type="text" id="team1"></input>
+    </label>
+	<label> Team2:
+      <input type="text" id="team2"></input>
+    </label>
+	<label> Who Wins:
+      <input type="text" id="winner"></input>
+    </label>
+	<label> Cost (in Wei):
+      <input type="text" id="cost"></input>
+    </label>
+	<label> Date it Ends on:
+      <input type="text" id="date"></input>
+    </label>
+	<button onclick="createAuction()"> Click for the test </button>
   </fieldset>
 
   </body>

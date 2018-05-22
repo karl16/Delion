@@ -88,32 +88,14 @@ contract BetBase is Executive
     }
 
     //Mapping of Dates to a list of bets for that day
-    mapping(bytes32 => Bet[]) betList;      // @dev @TODO this won't work because dynamically sized arrays are not allowed and or liked
-    //this might work actually need more testing
+    mapping(bytes32 => Bet[]) betList;
 
-    mapping(bytes32 => uint256[]) tmpList;      // @dev for testing
 
     //events
     event Payout(address winner, uint256 payout);
     event BetCreated(address g1, address g2, bytes32 p1, bytes32 p2, bytes32 comp, bytes32 compCrit, uint256 pot, bytes32 date);
 
-//Testing Start ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ @dev
-    function addingToArray() external returns (uint256 size)
-    {
-        bytes32 key = "3ee";
-        tmpList[key].push(42);
-    }
-    function sizeOfArray() external view returns (uint256 size)
-    {
-        bytes32 key = "3ee";
-        size = tmpList[key].length();
-    }
-    function valAt(uint256 index) external view returns (uint256 val)
-    {
-        bytes32 key = "3ee";
-        val = tmpList[key][index];
-    }
-//Testing End ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
     /*
     function _payout(address winner, uint256 balance, Bet b) internal
@@ -171,10 +153,7 @@ contract BetBase is Executive
 
         //event
         emit BetCreated(g1, g2, t1, t2, op, critera, pot, date);
-    }
-
-
-     
+    }   
 
 }
 
@@ -200,11 +179,11 @@ contract BetMain is BetBase
         }
     }*/
 
-
+/*
     // For testing @dev
-    function showBets() external view returns (uint256[] prices)
+    function showBets(bytes32 date) external view returns (uint256[] prices)
     {
-        bytes32 date = "352f31372f3138";
+        //bytes32 date = "352f31372f3138";
         uint256 size = betList[date].length;
         uint256[] memory result = new uint256[](size);
         uint256 currIndex = 0;
@@ -216,13 +195,14 @@ contract BetMain is BetBase
         }
         return result;
     }
-    // For testing @dev
-    function numBets() external view returns (uint256 size)
+*/
+    // For debugging @dev
+    function numBets(bytes32 date) external view returns (uint256 size)
     {
-        bytes32 date = "352f31372f3138";
         size = betList[date].length;
     }
 }
+
 
 
 contract AuctionBase is BetMain
@@ -300,7 +280,7 @@ contract AuctionBase is BetMain
 
     function _bid(uint256 id, address sender) internal 
     {
-        Auction storage a = auctionMapping[id];
+        Auction memory a = auctionMapping[id];
 
         require(_isLive(a));
 
@@ -438,8 +418,9 @@ contract AuctionMain is AuctionBase
             if(_isLive(auctionMapping[i]) && auctionMapping[i].date < currentDate)
             {
                 // Take 1% fee for cancelling there auction
-                auctionMapping[i].cost *= .99;
-                _cancelAuction(auctionMapping[i].date, auctionMapping[i].writer);
+                // @dev @todo take fee
+               // auctionMapping[i].cost *= .99;
+                _cancelAuction(auctionMapping[i], auctionMapping[i].writer);
             }
         }
     }
